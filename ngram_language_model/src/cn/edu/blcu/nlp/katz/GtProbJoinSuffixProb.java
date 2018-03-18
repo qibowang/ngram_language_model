@@ -7,8 +7,7 @@ import java.util.List;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.io.IntWritable;
-import org.apache.hadoop.io.LongWritable;
+
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.WritableUtils;
 import org.apache.hadoop.io.SequenceFile.CompressionType;
@@ -17,11 +16,11 @@ import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.input.SequenceFileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat;
 
 import com.hadoop.compression.lzo.LzoCodec;
-
 
 /*
  * 将后缀串和对应概率
@@ -31,26 +30,33 @@ public class GtProbJoinSuffixProb {
 		private Text resKey = new Text();
 		private Text resValue = new Text();
 		private String ngram;
-		private int wordsNum;
+		private int HZNum;
 		private String suffix;
 		private String valueStr;
 		private String items[];
-		
+		private int startOrder=1;
+		private int endOrder=5;
+		@Override
+		protected void setup(Context context) throws IOException, InterruptedException {
+			Configuration conf = context.getConfiguration();
+			startOrder = conf.getInt("startOrder", startOrder);
+			endOrder = conf.getInt("endOrder", endOrder);
+		}
 		@Override
 		protected void map(Text key, Text value, Context context) throws IOException, InterruptedException {
 			// key:ngram
 			// value:prob ngramCount
 			ngram = key.toString();
-			wordsNum = ngram.length();
-			valueStr=value.toString();
-			
-			if (wordsNum >= 2) {
+			HZNum = ngram.length();
+			valueStr = value.toString();
+			items = valueStr.split("\t");
+			if (HZNum>startOrder) {
 				suffix = ngram.substring(1);
-				items=valueStr.split("\t");
 				resKey.set(suffix);
-				resValue.set(ngram+"\t"+items[0]);
+				resValue.set(ngram + "\t" + items[0]);
 				context.write(resKey, resValue);
-				//
+			}
+			if(HZNum<endOrder){
 				resValue.set(items[0]);
 				context.write(key, resValue);
 			}
@@ -62,7 +68,7 @@ public class GtProbJoinSuffixProb {
 		private String items[];
 		private Text resKey = new Text();
 		private Text resValue = new Text();
-		private String probStr = "";
+	
 		private int listSize = 0;
 		private int tempIndex = 0;
 		private String tempStr;
@@ -72,81 +78,90 @@ public class GtProbJoinSuffixProb {
 				throws IOException, InterruptedException {
 			Configuration conf = context.getConfiguration();
 			List<Text> list = new ArrayList<Text>();
-
+			String suffixProbStr = "";
 			for (Text value : values) {
 				items = value.toString().split("\t");
 				if (items.length == 1) {
 					// value:prob
-					probStr = items[0];
+					suffixProbStr = items[0];
 				} else {
 					list.add(WritableUtils.clone(value, conf));
 				}
 			}
 			listSize = list.size();
-			if (probStr.length() != 0 && listSize != 0) {
-				for (tempIndex = 0; tempIndex < listSize; tempIndex++) {
-					tempStr=list.get(tempIndex).toString();
-					//ngram\\tprob\\tngramCount
-					items=tempStr.split("\t");
-					resKey.set(items[0]);
-					resValue.set(items[1]+"\t"+probStr);
-					context.write(resKey, resValue);
-				}
+			// if (suffixProbStr.length() != 0 && listSize != 0) {
+			for (tempIndex = 0; tempIndex < listSize; tempIndex++) {
+				tempStr = list.get(tempIndex).toString();
+				// ngram\\tprob
+				suffixProbStr = suffixProbStr.length() == 0 ? "0.0" : suffixProbStr;
+				items = tempStr.split("\t");
+				resKey.set(items[0]);
+				resValue.set(items[1] + "\t" + suffixProbStr);
+				context.write(resKey, resValue);
 			}
 		}
+		// }
 	}
-	
+
 	public static void main(String[] args) {
-		String input="";
-		String output="";
-		int isLzo=0;
+		String input = "";
+		String output = "";
+		int isLzo = 0;
 		int tasks = 1;
-		
-		
-		boolean parameterValid=false;
+		int startOrder=1;
+		int endOrder=5;
+		boolean parameterValid = false;
 		int parameterNum = args.length;
-		String inputPaths[]=new String[10];
-		int index=0;
+		String inputPaths[] = new String[10];
+		int index = 0;
 
 		for (int i = 0; i < parameterNum; i++) {
 			if (args[i].startsWith("-input")) {
-				
+
 				input = args[++i];
-				if(index<inputPaths.length){
-					inputPaths[index++]=input;
-				}else{
+				if (index < inputPaths.length) {
+					inputPaths[index++] = input;
+				} else {
 					System.out.println("input paths are more than 10 please build the jar file again");
-					parameterValid=true;
+					parameterValid = true;
 				}
-				System.out.println("input path--->"+input);
+				System.out.println("input path--->" + input);
 			} else if (args[i].equals("-output")) {
 				output = args[++i];
 				System.out.println("output--->" + output);
-			}  else if (args[i].equals("-isLzo")) {
+			} else if (args[i].equals("-isLzo")) {
 				isLzo = Integer.parseInt(args[++i]);
 				System.out.println("isLzo---->" + isLzo);
-			} else if(args[i].equals("-tasks")){
-				tasks=Integer.parseInt(args[++i]);
-				System.out.println("tasks--->"+tasks);
+			} else if (args[i].equals("-tasks")) {
+				tasks = Integer.parseInt(args[++i]);
+				System.out.println("tasks--->" + tasks);
+			} else if(args[i].equals("-startOrder")){
+				startOrder=Integer.parseInt(args[++i]);
+				System.out.println("startOrder---->"+startOrder);
+			}else if(args[i].equals("-endOrder")){
+				endOrder=Integer.parseInt(args[++i]);
+				System.out.println("endOrder---->"+endOrder);
 			}else {
 				System.out.println("there exists invalid parameters--->" + args[i]);
-				parameterValid=true;
+				parameterValid = true;
 			}
 		}
 
-		if(parameterValid){
+		if (parameterValid) {
 			System.out.println("parameters invalid!!!!");
 			System.exit(1);
 		}
-		
+
 		try {
 
 			Configuration conf = new Configuration();
-		
+
 			conf.setBoolean("mapreduce.compress.map.output", true);
 			conf.setClass("mapreduce.map.output.compression.codec", LzoCodec.class, CompressionCodec.class);
 			conf.set("dfs.client.block.write.replace-datanode-on-failure.enable", "true");
 			conf.set("dfs.client.block.write.replace-datanode-on-failure.policy", "NEVER");
+			conf.setInt("startOrder", startOrder);
+			conf.setInt("endOrder", endOrder);
 			
 			Job probJoinSuffix = Job.getInstance(conf, "gtProb Join suffix");
 			System.out.println(probJoinSuffix.getJobName() + " is running!!!");
@@ -154,22 +169,20 @@ public class GtProbJoinSuffixProb {
 
 			probJoinSuffix.setMapperClass(KatzDenominatorMapper.class);
 			probJoinSuffix.setReducerClass(KatzDenominatorReducer.class);
-		
-			
+
 			probJoinSuffix.setMapOutputKeyClass(Text.class);
 			probJoinSuffix.setMapOutputValueClass(Text.class);
 			probJoinSuffix.setOutputKeyClass(Text.class);
 			probJoinSuffix.setOutputValueClass(Text.class);
 			probJoinSuffix.setNumReduceTasks(tasks);
-			
-			
-			for(String path:inputPaths){
-				if(path!=null){
-					System.out.println("input path--->"+path);
+
+			for (String path : inputPaths) {
+				if (path != null) {
+					System.out.println("input path--->" + path);
 					FileInputFormat.addInputPath(probJoinSuffix, new Path(path));
 				}
 			}
-			
+
 			FileInputFormat.setInputDirRecursive(probJoinSuffix, true);
 			FileSystem fs = FileSystem.get(conf);
 			Path outputPath = new Path(output);
@@ -178,7 +191,9 @@ public class GtProbJoinSuffixProb {
 			}
 			FileOutputFormat.setOutputPath(probJoinSuffix, outputPath);
 			
+			probJoinSuffix.setInputFormatClass(SequenceFileInputFormat.class);
 			probJoinSuffix.setOutputFormatClass(SequenceFileOutputFormat.class);
+			
 			if (isLzo == 0) {
 				setLzo(probJoinSuffix);
 			}
@@ -196,9 +211,9 @@ public class GtProbJoinSuffixProb {
 		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}
-		
-		
+
 	}
+
 	public static void setLzo(Job job) {
 		SequenceFileOutputFormat.setCompressOutput(job, true);
 		SequenceFileOutputFormat.setOutputCompressionType(job, CompressionType.BLOCK);

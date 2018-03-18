@@ -6,6 +6,8 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.Text;
+import org.apache.hadoop.io.WritableComparable;
+import org.apache.hadoop.io.WritableComparator;
 import org.apache.hadoop.io.SequenceFile.CompressionType;
 import org.apache.hadoop.io.compress.CompressionCodec;
 import org.apache.hadoop.mapreduce.Job;
@@ -17,23 +19,27 @@ import org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat;
 
 import com.hadoop.compression.lzo.LzoCodec;
 
-import cn.edu.blcu.nlp.katz.GtProbJoinSuffixProb.KatzDenominatorMapper;
-import cn.edu.blcu.nlp.katz.GtProbJoinSuffixProb.KatzDenominatorReducer;
+
 
 public class Katz {
 	public static class KatzMapper extends Mapper<Text, Text, Text, Text> {
 		private Text resKey = new Text();
 
 		private String ngram;
-		private int wordsNum;
+		private int HZNum;
 		private String prefix;
-
+		private int startOrder=1;
+		@Override
+		protected void setup(Context context) throws IOException, InterruptedException {
+			Configuration conf = context.getConfiguration();
+			startOrder=conf.getInt("startOrder", startOrder);
+		}
 		@Override
 		protected void map(Text key, Text value, Context context) throws IOException, InterruptedException {
 			ngram = key.toString();
-			wordsNum = ngram.length();
-			if (wordsNum >= 2) {
-				prefix = ngram.substring(0, wordsNum - 1);
+			HZNum = ngram.length();
+			if (HZNum >startOrder) {
+				prefix = ngram.substring(0, HZNum - 1);
 				resKey.set(prefix);
 				context.write(resKey, value);
 			}
@@ -48,7 +54,7 @@ public class Katz {
 		private String valueStr;
 		private String[] items;
 		private Text resValue = new Text();
-
+		
 		@Override
 		protected void reduce(Text key, Iterable<Text> values, Context context)
 				throws IOException, InterruptedException {
@@ -61,19 +67,37 @@ public class Katz {
 			if (numerator >= 1.0 || denominator >= 1.0) {
 				back = 0.0;
 			} else {
-				back = Math.log10((1 - numerator) / (1 - denominator));
+				back = Math.log10(1 - numerator) - Math.log10(1 - denominator);
 			}
+			
 			resValue.set(String.valueOf(back));
 			context.write(key, resValue);
 		}
 	}
-
+	public class KatzSortComparator extends WritableComparator{
+		protected KatzSortComparator() {
+			super(Text.class,true);
+		}
+		@Override
+		public int compare(WritableComparable a, WritableComparable b) {
+			// TODO Auto-generated method stub
+			
+			Text text1=(Text)a;
+			Text text2=(Text)b;
+			
+			String str1=text1.toString();
+			String str2=text2.toString();
+			return str1.compareTo(str2);
+			
+		}
+		
+	}
 	public static void main(String[] args) {
 		String input = "";
 		String backPath = "";
 		int isLzo = 0;
 		int tasks = 1;
-
+		int startOrder=1;
 		boolean parameterValid = false;
 		int parameterNum = args.length;
 		String inputPaths[] = new String[10];
@@ -99,7 +123,10 @@ public class Katz {
 			} else if (args[i].equals("-tasks")) {
 				tasks = Integer.parseInt(args[++i]);
 				System.out.println("tasks--->" + tasks);
-			} else {
+			} else if(args[i].equals("-startOrder")){
+				startOrder=Integer.parseInt(args[++i]);
+				System.out.println("startOrder--->"+startOrder);
+			}else {
 				System.out.println("there exists invalid parameters--->" + args[i]);
 				parameterValid = true;
 			}
@@ -118,14 +145,16 @@ public class Katz {
 			conf.setClass("mapreduce.map.output.compression.codec", LzoCodec.class, CompressionCodec.class);
 			conf.set("dfs.client.block.write.replace-datanode-on-failure.enable", "true");
 			conf.set("dfs.client.block.write.replace-datanode-on-failure.policy", "NEVER");
-
+			conf.setInt("startOrder", startOrder);
+			
 			Job katzJob = Job.getInstance(conf, "gtProb Join suffix");
 			System.out.println(katzJob.getJobName() + " is running!!!");
 			katzJob.setJarByClass(GtProbJoinSuffixProb.class);
 
 			katzJob.setMapperClass(KatzMapper.class);
 			katzJob.setReducerClass(KatzReducer.class);
-
+			katzJob.setSortComparatorClass(KatzSortComparator.class);
+			
 			katzJob.setMapOutputKeyClass(Text.class);
 			katzJob.setMapOutputValueClass(Text.class);
 			katzJob.setOutputKeyClass(Text.class);

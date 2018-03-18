@@ -12,6 +12,7 @@ import org.apache.hadoop.io.SequenceFile.CompressionType;
 import org.apache.hadoop.io.compress.CompressionCodec;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.input.SequenceFileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat;
 
@@ -108,7 +109,7 @@ public class CountOfCountsDriver {
 				fs.delete(outputPath, true);
 			}
 			FileOutputFormat.setOutputPath(cocJob, outputPath);
-			
+			cocJob.setInputFormatClass(SequenceFileInputFormat.class);
 			cocJob.setOutputFormatClass(SequenceFileOutputFormat.class);
 			if (isLzo == 0) {
 				setLzo(cocJob);

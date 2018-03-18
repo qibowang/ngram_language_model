@@ -19,20 +19,20 @@ public class GoodTurningMapper extends Mapper<Text, LongWritable, Text, Text> {
 	private Text resKey = new Text();
 	private Text resValue = new Text();
 
-	
 	private String ngramStr;
 
 	private long ngramRawCountL;
 	private String ngramRawCountStr;
 	private double ngramGtCountD;
-	private int wordsNumI;
-	private String wordsNumStr;
+	private int HZNum;
+	private String HZNumStr;
 
 	private int startOrder = 1;
 	private int endOrder = 3;
 
 	private int tempI;
-	private String prefix="";
+	private String prefix = "";
+	private int gtBoundary=5;//ngramRawCount小于该值时进行 good-turning平滑 该值的设置参考宗成庆老师书给的建议值
 
 	@Override
 	protected void setup(Context context) throws IOException, InterruptedException {
@@ -49,24 +49,25 @@ public class GoodTurningMapper extends Mapper<Text, LongWritable, Text, Text> {
 		Text key = new Text();
 		LongWritable value = new LongWritable();
 		String[] items;
-		String wordsNumStr;
+		String HZNumStr;
 		String ngramRawCountStr;
 		Long frequenceL;
+		HashMap<String, Long> temp;
 		while (reader.next(key, value)) {
 			// key--->wordsNum+"\t"+ngramCount
 			// value--->frequence
 			items = key.toString().split("\t");
-			wordsNumStr = items[0];
+			HZNumStr = items[0];
 			ngramRawCountStr = items[1];
 			frequenceL = value.get();
-			if (map.containsKey(wordsNumStr)) {
-				HashMap<String, Long> temp = map.get(wordsNumStr);
+			if (map.containsKey(HZNumStr)) {
+				temp = map.get(HZNumStr);
 				temp.put(ngramRawCountStr, frequenceL);
-				map.put(wordsNumStr, temp);
+				map.put(HZNumStr, temp);
 			} else {
-				HashMap<String, Long> temp = new HashMap<String, Long>();
+				temp = new HashMap<String, Long>();
 				temp.put(ngramRawCountStr, frequenceL);
-				map.put(wordsNumStr, temp);
+				map.put(HZNumStr, temp);
 			}
 		}
 		IOUtils.closeStream(reader);
@@ -78,30 +79,47 @@ public class GoodTurningMapper extends Mapper<Text, LongWritable, Text, Text> {
 		ngramRawCountL = value.get();
 		ngramGtCountD = (double) ngramRawCountL;
 		ngramRawCountStr = String.valueOf(ngramRawCountL);
-		wordsNumI = ngramStr.length();
-		wordsNumStr = String.valueOf(wordsNumI);
-		if (wordsNumI >= startOrder && wordsNumI <= endOrder) {
-			for (tempI = 1; tempI < 5; tempI++) {
-				if (map.get(wordsNumStr).containsKey(ngramRawCountStr)
-						&& map.get(wordsNumStr).containsKey(String.valueOf(ngramRawCountL + tempI))) {
-					Long Nr1 = map.get(wordsNumStr).get(String.valueOf(ngramRawCountL + tempI));
-					Long Nr = map.get(wordsNumStr).get(ngramRawCountStr);
-					ngramGtCountD=(ngramRawCountL + 1d) * Nr1.doubleValue() / Nr.doubleValue();
-					break;
+		HZNum = ngramStr.length();
+		HZNumStr = String.valueOf(HZNum);
+
+		if (HZNum >= startOrder && HZNum <= endOrder) {
+			if (ngramRawCountL <= gtBoundary) {
+				for (tempI = 1; tempI < 5; tempI++) {
+					if (map.get(HZNumStr).containsKey(ngramRawCountStr)
+							&& map.get(HZNumStr).containsKey(String.valueOf(ngramRawCountL + tempI))) {
+						Long Nr1 = map.get(HZNumStr).get(String.valueOf(ngramRawCountL + tempI));
+						Long Nr = map.get(HZNumStr).get(ngramRawCountStr);
+						ngramGtCountD = (ngramRawCountL + 1d) * Nr1.doubleValue() / Nr.doubleValue();
+						break;
+					}
 				}
+
+				resValue.set(ngramStr + "\t" + ngramGtCountD + "\t" + ngramRawCountL);
+
+				if (HZNum == 1) {
+					resKey.set("unigram");
+					context.write(resKey, resValue);
+				} else {
+					prefix = ngramStr.substring(0, HZNum - 1);
+					resKey.set(prefix);
+					context.write(resKey, resValue);
+				}
+
 			}
-			
-			resValue.set(ngramStr+"\t"+ngramGtCountD+"\t"+ngramRawCountL);
-			
-			if(wordsNumI==1){
+		} else {
+
+			resValue.set(ngramStr + "\t" + ngramRawCountL + "\t" + ngramRawCountL);
+			if (HZNum == 1) {
 				resKey.set("unigram");
 				context.write(resKey, resValue);
-			}else{
-				prefix=ngramStr.substring(0, wordsNumI-1);
+			} else {
+				prefix = ngramStr.substring(0, HZNum - 1);
 				resKey.set(prefix);
 				context.write(resKey, resValue);
 			}
+
 		}
+
 	}
 
 }
