@@ -14,6 +14,7 @@ import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.input.SequenceFileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat;
 
@@ -74,7 +75,7 @@ public class Katz {
 			context.write(key, resValue);
 		}
 	}
-	public class KatzSortComparator extends WritableComparator{
+	public static class KatzSortComparator extends WritableComparator{
 		protected KatzSortComparator() {
 			super(Text.class,true);
 		}
@@ -175,7 +176,7 @@ public class Katz {
 				fs.delete(outputPath, true);
 			}
 			FileOutputFormat.setOutputPath(katzJob, outputPath);
-
+			katzJob.setInputFormatClass(SequenceFileInputFormat.class);
 			katzJob.setOutputFormatClass(SequenceFileOutputFormat.class);
 			if (isLzo == 0) {
 				setLzo(katzJob);
