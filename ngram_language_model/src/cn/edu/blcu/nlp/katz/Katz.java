@@ -50,8 +50,7 @@ public class Katz {
 
 	public static class KatzReducer extends Reducer<Text, Text, Text, Text> {
 		private double back = 0.0;
-		private double numerator = 0.0;
-		private double denominator = 0.0;
+		
 		private String valueStr;
 		private String[] items;
 		private Text resValue = new Text();
@@ -59,6 +58,8 @@ public class Katz {
 		@Override
 		protected void reduce(Text key, Iterable<Text> values, Context context)
 				throws IOException, InterruptedException {
+			double numerator = 0.0;
+			double denominator = 0.0;
 			for (Text value : values) {
 				valueStr = value.toString();
 				items = valueStr.split("\t");

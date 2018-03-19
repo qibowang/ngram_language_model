@@ -101,7 +101,7 @@ public class KatzSort {
 			conf.setClass("mapreduce.map.output.compression.codec", LzoCodec.class, CompressionCodec.class);
 			conf.set("dfs.client.block.write.replace-datanode-on-failure.enable", "true");
 			conf.set("dfs.client.block.write.replace-datanode-on-failure.policy", "NEVER");
-			Job katzSortJob = Job.getInstance(conf, "prob sort Job");
+			Job katzSortJob = Job.getInstance(conf, "katz sort Job");
 			System.out.println(katzSortJob.getJobName() + " is running!");
 			katzSortJob.setJarByClass(KatzSort.class);
 			katzSortJob.setMapperClass(KatzSortMapper.class);
