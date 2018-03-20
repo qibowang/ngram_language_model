@@ -18,6 +18,8 @@ import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 
 import com.hadoop.compression.lzo.LzoCodec;
 
+
+
 public class ProbSort {
 	
 	public static class ProbSortMapper extends Mapper<Text,Text,Text,Text>{
@@ -142,6 +144,5 @@ public class ProbSort {
 		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}
-
 	}
 }

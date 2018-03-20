@@ -67,7 +67,7 @@ public class Katz {
 				denominator += Double.parseDouble(items[1]);
 			}
 			if (numerator >= 1.0 || denominator >= 1.0) {
-				back = 0.0;
+				back = -6.0;
 			} else {
 				back = Math.log10(1 - numerator) - Math.log10(1 - denominator);
 			}
