@@ -11,13 +11,12 @@ import org.apache.hadoop.io.compress.CompressionCodec;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.input.MultipleInputs;
+import org.apache.hadoop.mapreduce.lib.input.SequenceFileInputFormat;
 import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat;
 
 import com.hadoop.compression.lzo.LzoCodec;
-
-
 
 public class JoinDriver {
 	public static void main(String[] args) {
@@ -26,20 +25,19 @@ public class JoinDriver {
 		String lmPath = "";
 		int isLzo = 0;
 		int tasks = 7;
+		int gtmin = 3;
 
-		
 		boolean parameterValid = false;
 		int parameterNum = args.length;
-		
-		
+
 		for (int i = 0; i < parameterNum; i++) {
 			if (args[i].startsWith("-prob")) {
 				probPath = args[++i];
 				System.out.println("prob path--->" + probPath);
-			} else if(args[i].startsWith("-back")){
-				backPath=args[++i];
+			} else if (args[i].startsWith("-back")) {
+				backPath = args[++i];
 				System.out.println("back path--->" + backPath);
-			}else if (args[i].equals("-output")) {
+			} else if (args[i].equals("-output")) {
 				lmPath = args[++i];
 				System.out.println("lmPath--->" + lmPath);
 			} else if (args[i].equals("-isLzo")) {
@@ -48,7 +46,10 @@ public class JoinDriver {
 			} else if (args[i].equals("-tasks")) {
 				tasks = Integer.parseInt(args[++i]);
 				System.out.println("tasks--->" + tasks);
-			}  else {
+			} else if (args[i].equals("-gtmin")) {
+				gtmin = Integer.parseInt(args[++i]);
+				System.out.println("gtmin--->" + gtmin);
+			} else {
 				System.out.println("there exists invalid parameters--->" + args[i]);
 				parameterValid = true;
 			}
@@ -67,24 +68,23 @@ public class JoinDriver {
 			conf.setClass("mapreduce.map.output.compression.codec", LzoCodec.class, CompressionCodec.class);
 			conf.set("dfs.client.block.write.replace-datanode-on-failure.enable", "true");
 			conf.set("dfs.client.block.write.replace-datanode-on-failure.policy", "NEVER");
+			conf.setInt("gtmin", gtmin);
 			
-
 			Job probJoinBackJob = Job.getInstance(conf, "prob join back");
 			System.out.println(probJoinBackJob.getJobName() + " is running!!!");
-			
+
 			probJoinBackJob.setJarByClass(JoinDriver.class);
 			probJoinBackJob.setReducerClass(JoinReducer.class);
 			probJoinBackJob.setNumReduceTasks(tasks);
 			probJoinBackJob.setSortComparatorClass(ProbJoinBackSort.class);
-			
-			
+
 			probJoinBackJob.setMapOutputKeyClass(Text.class);
 			probJoinBackJob.setMapOutputValueClass(Text.class);
 			probJoinBackJob.setOutputKeyClass(Text.class);
 			probJoinBackJob.setOutputValueClass(Text.class);
-			
-			MultipleInputs.addInputPath(probJoinBackJob, new Path(probPath),TextInputFormat.class,ProbMapper.class);
-			MultipleInputs.addInputPath(probJoinBackJob, new Path(backPath),TextInputFormat.class,KatzMapper.class);
+
+			MultipleInputs.addInputPath(probJoinBackJob, new Path(probPath), SequenceFileInputFormat.class, ProbMapper.class);
+			MultipleInputs.addInputPath(probJoinBackJob, new Path(backPath), SequenceFileInputFormat.class, KatzMapper.class);
 
 			FileInputFormat.setInputDirRecursive(probJoinBackJob, true);
 			FileSystem fs = FileSystem.get(conf);
@@ -93,7 +93,7 @@ public class JoinDriver {
 				fs.delete(outputPath, true);
 			}
 			FileOutputFormat.setOutputPath(probJoinBackJob, outputPath);
-			
+
 			probJoinBackJob.setOutputFormatClass(SequenceFileOutputFormat.class);
 			if (isLzo == 0) {
 				setLzo(probJoinBackJob);

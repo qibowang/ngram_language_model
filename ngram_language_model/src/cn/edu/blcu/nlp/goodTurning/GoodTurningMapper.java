@@ -105,20 +105,20 @@ public class GoodTurningMapper extends Mapper<Text, LongWritable, Text, Text> {
 					context.write(resKey, resValue);
 				}
 
-			}
-		} else {
+			}else {
 
-			resValue.set(ngramStr + "\t" + ngramRawCountL + "\t" + ngramRawCountL);
-			if (HZNum == 1) {
-				resKey.set("unigram");
-				context.write(resKey, resValue);
-			} else {
-				prefix = ngramStr.substring(0, HZNum - 1);
-				resKey.set(prefix);
-				context.write(resKey, resValue);
-			}
+				resValue.set(ngramStr + "\t" + ngramRawCountL + "\t" + ngramRawCountL);
+				if (HZNum == 1) {
+					resKey.set("unigram");
+					context.write(resKey, resValue);
+				} else {
+					prefix = ngramStr.substring(0, HZNum - 1);
+					resKey.set(prefix);
+					context.write(resKey, resValue);
+				}
 
-		}
+			}
+		} 
 
 	}
 

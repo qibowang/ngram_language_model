@@ -2,29 +2,39 @@ package cn.edu.blcu.nlp.probJoinKatz;
 
 import java.io.IOException;
 
-import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.conf.Configuration;
+
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Mapper;
 
+public class ProbMapper extends Mapper<Text, Text, Text, Text> {
 
-
-public class ProbMapper extends Mapper<LongWritable,Text,Text,Text>{
-	private String ngram;
 	private String valueStr;
 	private String items[];
-	private Text resKey = new Text();
+	private String ngramCountString = "";
+	private String probStr = "";
 	private Text resValue = new Text();
+	private int gtmin = 3;
+
 	@Override
-	protected void map(LongWritable key, Text value, Mapper<LongWritable, Text, Text, Text>.Context context)
-			throws IOException, InterruptedException {
-		valueStr=value.toString();
-		items=valueStr.split("\t");
-		if(items.length==3){
-			resKey.set(items[0]);
-			resValue.set(items[1]+"\t"+items[2]);
-			context.write(resKey, resValue);
-		}
-				
+	protected void setup(Context context) throws IOException, InterruptedException {
+		Configuration conf = context.getConfiguration();
+		gtmin = conf.getInt("gtmin", gtmin);
 	}
-	
+
+	@Override
+	protected void map(Text key, Text value, Context context) throws IOException, InterruptedException {
+		valueStr = value.toString();
+		items = valueStr.split("\t");
+
+		if (items.length == 2) {
+			probStr = items[0];
+			ngramCountString = items[1];
+			if (Long.parseLong(ngramCountString) >= gtmin) {
+				resValue.set(Math.log10(Double.parseDouble(probStr)) + "\t" + ngramCountString);
+				context.write(key, resValue);
+			}
+		}
+	}
+
 }

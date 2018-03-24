@@ -6,15 +6,17 @@ import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Reducer;
 
 public class JoinReducer extends Reducer<Text,Text,Text,Text>{
-	
+	private Text resKey = new Text();
 	private Text resValue = new Text();
 	private String prob="";
 	private String back="";
 	private String joinValue;
 	private int  itemsLen;
+	private String ngram;
 	@Override
 	protected void reduce(Text key, Iterable<Text> values, Context context)
 			throws IOException, InterruptedException {
+		ngram = key.toString();
 		prob="";
 		back="";
 		for(Text value:values){
@@ -32,7 +34,8 @@ public class JoinReducer extends Reducer<Text,Text,Text,Text>{
 			}else{
 				resValue.set(prob);
 			}
-			context.write(key, resValue);
+			resKey.set(new StringBuffer(ngram).reverse().toString());
+			context.write(resKey, resValue);
 		}
 	}
 }

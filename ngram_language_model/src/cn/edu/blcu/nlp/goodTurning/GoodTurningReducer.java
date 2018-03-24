@@ -8,8 +8,13 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.WritableUtils;
 import org.apache.hadoop.mapreduce.Reducer;
+//import org.slf4j.Logger;
+//import org.slf4j.LoggerFactory;
 
 public class GoodTurningReducer extends Reducer<Text,Text,Text,Text>{
+	
+	//Logger log = LoggerFactory.getLogger(GoodTurningReducer.class);
+	
 	private String ngram;
 	private String valueStr;
 	private long ngramRawcount;
@@ -33,12 +38,14 @@ public class GoodTurningReducer extends Reducer<Text,Text,Text,Text>{
 		long rawcountSum=0l;
 		for(Text value:values){
 			valueStr=value.toString();
+			//log.info("value into reduce--->"+valueStr);
 			items=valueStr.split("\t");
 			rawcountSum+=Long.parseLong(items[2]);
 			list.add(WritableUtils.clone(value, conf));
 		}
 		
 		for(Text value:list){
+			
 			valueStr=value.toString();
 			items=valueStr.split("\t");
 			ngram=items[0];
