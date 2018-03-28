@@ -8,10 +8,12 @@ import org.apache.hadoop.mapreduce.lib.partition.HashPartitioner;
  * Created by root on 2017/5/24.
  */
 public class NgramCountPartitioner extends HashPartitioner<Text,IntWritable>{
+	String keyStr="";
+	String prefix="";
 	@Override
 	public int getPartition(Text key, IntWritable value, int numReduceTasks) {
-		String line=key.toString();
-		String prefix =(line.length()>1)?(line.substring(0, 2)):line.substring(0, 1);
+		keyStr=key.toString();
+		prefix =(keyStr.length()>1)?(keyStr.substring(0, 2)):keyStr;
 		return Math.abs(prefix.hashCode())%numReduceTasks;
 	}
 }

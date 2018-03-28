@@ -77,6 +77,8 @@ public class JoinDriver {
 			probJoinBackJob.setReducerClass(JoinReducer.class);
 			probJoinBackJob.setNumReduceTasks(tasks);
 			probJoinBackJob.setSortComparatorClass(ProbJoinBackSort.class);
+			probJoinBackJob.setPartitionerClass(JoinPartition.class);
+			
 
 			probJoinBackJob.setMapOutputKeyClass(Text.class);
 			probJoinBackJob.setMapOutputValueClass(Text.class);
