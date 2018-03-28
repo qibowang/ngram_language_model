@@ -14,11 +14,13 @@ import org.apache.hadoop.io.SequenceFile.CompressionType;
 import org.apache.hadoop.io.compress.CompressionCodec;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
+import org.apache.hadoop.mapreduce.Partitioner;
 import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.input.SequenceFileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat;
+import org.apache.hadoop.mapreduce.lib.partition.HashPartitioner;
 
 import com.hadoop.compression.lzo.LzoCodec;
 
@@ -103,6 +105,18 @@ public class GtProbJoinSuffixProb {
 		// }
 	}
 
+	public static class KatzDenominatorPartitioner extends HashPartitioner<Text,Text>{
+		String keyStr="";
+		String prefix="";
+		@Override
+		public int getPartition(Text key, Text value, int numReduceTasks) {
+			keyStr=key.toString();
+			prefix=keyStr.length()>1?keyStr.substring(0, 2):keyStr;
+			return Math.abs(prefix.hashCode()%numReduceTasks);
+		}
+		
+	}
+	
 	public static void main(String[] args) {
 		String input = "";
 		String output = "";
@@ -169,13 +183,14 @@ public class GtProbJoinSuffixProb {
 
 			probJoinSuffix.setMapperClass(KatzDenominatorMapper.class);
 			probJoinSuffix.setReducerClass(KatzDenominatorReducer.class);
-
+			probJoinSuffix.setPartitionerClass(KatzDenominatorPartitioner.class);
+			
 			probJoinSuffix.setMapOutputKeyClass(Text.class);
 			probJoinSuffix.setMapOutputValueClass(Text.class);
 			probJoinSuffix.setOutputKeyClass(Text.class);
 			probJoinSuffix.setOutputValueClass(Text.class);
 			probJoinSuffix.setNumReduceTasks(tasks);
-
+			
 			for (String path : inputPaths) {
 				if (path != null) {
 					System.out.println("input path--->" + path);
