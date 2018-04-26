@@ -76,7 +76,7 @@ public class NgramCountDriver {
 			System.out.println(rawCountJob.getJobName() + " is running!!!");
 			rawCountJob.setJarByClass(NgramCountDriver.class);
 
-			rawCountJob.setMapperClass(NgramCountMapper.class);
+			rawCountJob.setMapperClass(NgramCountMapper0418.class);
 			rawCountJob.setReducerClass(NgramCountReducer.class);
 			rawCountJob.setCombinerClass(NgramCountCombiner.class);
 			rawCountJob.setPartitionerClass(NgramCountPartitioner.class);

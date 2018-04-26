@@ -10,7 +10,7 @@ public class JoinPartition extends HashPartitioner<Text, Text>{
 	@Override
 	public int getPartition(Text key, Text value, int numReduceTasks) {
 		keyStr=key.toString();
-		prefix =(keyStr.length()>1)?(keyStr.substring(0, 2)):keyStr.substring(0, 1);
+		prefix =(keyStr.length()>1)?(keyStr.substring(0, 2)):keyStr;
 		return Math.abs(prefix.hashCode())%numReduceTasks;
 	}
 }

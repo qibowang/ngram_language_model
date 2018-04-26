@@ -2,6 +2,8 @@ package cn.edu.blcu.nlp.goodTurning;
 
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
@@ -32,8 +34,11 @@ public class GoodTurningMapper extends Mapper<Text, LongWritable, Text, Text> {
 
 	private int tempI;
 	private String prefix = "";
-	private int gtBoundary=5;//ngramRawCount小于该值时进行 good-turning平滑 该值的设置参考宗成庆老师书给的建议值
+	private final int COUNTBOUNDARY=7;//ngramRawCount小于该值时进行 good-turning值对概率进行计算 否则 用原始次数对概率进行计算
 
+	HashMap<String, Long> temp;
+	
+	
 	@Override
 	protected void setup(Context context) throws IOException, InterruptedException {
 		Configuration conf = context.getConfiguration();
@@ -52,7 +57,7 @@ public class GoodTurningMapper extends Mapper<Text, LongWritable, Text, Text> {
 		String HZNumStr;
 		String ngramRawCountStr;
 		Long frequenceL;
-		HashMap<String, Long> temp;
+		
 		while (reader.next(key, value)) {
 			// key--->wordsNum+"\t"+ngramCount
 			// value--->frequence
@@ -61,7 +66,7 @@ public class GoodTurningMapper extends Mapper<Text, LongWritable, Text, Text> {
 			ngramRawCountStr = items[1];
 			frequenceL = value.get();
 			if (map.containsKey(HZNumStr)) {
-				temp = map.get(HZNumStr);
+				//temp = map.get(HZNumStr);
 				temp.put(ngramRawCountStr, frequenceL);
 				map.put(HZNumStr, temp);
 			} else {
@@ -81,32 +86,31 @@ public class GoodTurningMapper extends Mapper<Text, LongWritable, Text, Text> {
 		ngramRawCountStr = String.valueOf(ngramRawCountL);
 		HZNum = ngramStr.length();
 		HZNumStr = String.valueOf(HZNum);
-
+		
 		if (HZNum >= startOrder && HZNum <= endOrder) {
-			if (ngramRawCountL <= gtBoundary) {
+			temp = map.get(HZNumStr);
+			if (ngramRawCountL <= COUNTBOUNDARY) {
 				for (tempI = 1; tempI < 5; tempI++) {
-					if (map.get(HZNumStr).containsKey(ngramRawCountStr)
-							&& map.get(HZNumStr).containsKey(String.valueOf(ngramRawCountL + tempI))) {
+					if (temp.containsKey(ngramRawCountStr)
+							&& temp.containsKey(String.valueOf(ngramRawCountL + tempI))) {
 						Long Nr1 = map.get(HZNumStr).get(String.valueOf(ngramRawCountL + tempI));
 						Long Nr = map.get(HZNumStr).get(ngramRawCountStr);
 						ngramGtCountD = (ngramRawCountL + 1d) * Nr1.doubleValue() / Nr.doubleValue();
 						break;
 					}
 				}
-
-				resValue.set(ngramStr + "\t" + ngramGtCountD + "\t" + ngramRawCountL);
-
+				//resValue.set(ngramStr + "\t" + ngramGtCountD + "\t" + ngramRawCountL);
 				if (HZNum == 1) {
 					resKey.set("unigram");
+					resValue.set(ngramStr + "\t" + ngramRawCountL + "\t" + ngramRawCountL);
 					context.write(resKey, resValue);
 				} else {
 					prefix = ngramStr.substring(0, HZNum - 1);
 					resKey.set(prefix);
+					resValue.set(ngramStr + "\t" + ngramGtCountD + "\t" + ngramRawCountL);
 					context.write(resKey, resValue);
 				}
-
 			}else {
-
 				resValue.set(ngramStr + "\t" + ngramRawCountL + "\t" + ngramRawCountL);
 				if (HZNum == 1) {
 					resKey.set("unigram");
@@ -116,10 +120,7 @@ public class GoodTurningMapper extends Mapper<Text, LongWritable, Text, Text> {
 					resKey.set(prefix);
 					context.write(resKey, resValue);
 				}
-
 			}
 		} 
-
 	}
-
 }
